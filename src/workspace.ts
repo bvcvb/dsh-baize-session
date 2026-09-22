@@ -31,6 +31,7 @@ import { mkdir, open, rename, rm, rmdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
 import type {} from '@deepseek-ai/dsh-session-persistence'
+import { listRaw, listStored, type PersistenceLike as PersistenceSeam } from './persistence.ts'
 import type { SessionRef } from './relocate.ts'
 
 /** A refusal the user can act on; the API layer answers it with HTTP 400. */
@@ -102,9 +103,17 @@ interface WorkspaceEntityLike {
   attachSession?(id: string): Promise<void>
 }
 
-/** Structural view of the persistence seam (all of these are published APIs). */
-interface PersistenceLike {
-  list(signal?: AbortSignal): Promise<readonly { id: string; cwd?: string; origin?: string; createdAt?: number }[]>
+/**
+ * The write-side view of the persistence seam (all of these are published APIs
+ * on dsh 0.1.1-rc.2).
+ *
+ * None of it survives on dsh 0.1.7-alpha.1: `locate`, `readRaw`, `coordinator`
+ * and `tracker` were removed when the service moved to the SessionHandle model
+ * (see `./persistence.ts`). `move` therefore probes them before use and refuses
+ * with a clear message, rather than half-performing a migration. The read side
+ * lives in `PersistenceSeam`; the two are joined only where both are wanted.
+ */
+interface PersistenceWrites {
   locate(meta: unknown): { path: string } | undefined
   readRaw?(id: string, signal?: AbortSignal): Promise<{ meta: unknown; content: string; path?: string } | undefined>
   /** The coordinator behind a backend keeps per-session write state. */
@@ -141,7 +150,7 @@ interface AgentLike {
 const sleep = (ms: number): Promise<void> => new Promise(resolve => { setTimeout(resolve, ms) })
 
 /** The open writer for one live session, when the backend keeps one. */
-function liveWriterOf(store: PersistenceLike, sessionId: string): { header?: unknown } | undefined {
+function liveWriterOf(store: PersistenceWrites, sessionId: string): { header?: unknown } | undefined {
   const writers = store.tracker?.writers
   return typeof writers?.get === 'function' ? writers.get(sessionId) : undefined
 }
@@ -209,7 +218,8 @@ export function createWorkspaceAdmin(
     (ctx as unknown as { get?(n: string): unknown }).get?.(name) as T | undefined
 
   const registry = (): RegistryLike | undefined => get<RegistryLike>('workspaceRegistry')
-  const persistence = (): PersistenceLike | undefined => get<PersistenceLike>('sessionPersistence')
+  const persistence = (): (PersistenceSeam & PersistenceWrites) | undefined =>
+    get<PersistenceSeam & PersistenceWrites>('sessionPersistence')
   const agents = (): { get?(id: string): AgentLike | undefined } | undefined =>
     get<{ get?(id: string): AgentLike | undefined }>('agents')
 
@@ -274,8 +284,8 @@ export function createWorkspaceAdmin(
     const store = persistence()
     if (store === undefined) return undefined
     try {
-      const headers = await store.list()
-      const meta = headers.find(header => header.id === sessionId)
+      const rows = await listRaw(store)
+      const meta = rows.find(row => row.id === sessionId)
       if (meta === undefined) return undefined
       return store.locate(meta)?.path
     } catch { return undefined }
@@ -289,7 +299,7 @@ export function createWorkspaceAdmin(
     // Subagent lineage lives on the header, which the session list does not carry.
     const origins = new Map<string, string | undefined>()
     try {
-      for (const header of await (persistence()?.list() ?? [])) origins.set(header.id, header.origin)
+      for (const header of await listStored(persistence())) origins.set(header.id, header.origin)
     } catch { /* origins are decoration; a failed read just drops the badge */ }
 
     const workspaces = entities().map(optionOf)
@@ -453,7 +463,7 @@ export function createWorkspaceAdmin(
       const raw = await store.readRaw!(targetId)
       if (raw === undefined) throw new WorkspaceError('读不到该对话的磁盘工件，无法迁移。')
 
-      const headers = await store.list().catch(() => [])
+      const headers = await listRaw(store)
       const meta = headers.find(header => header.id === targetId)
       if (meta?.origin === 'subagent') throw new WorkspaceError('子代理会话不支持跨工作区迁移。')
 

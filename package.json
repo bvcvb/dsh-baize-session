@@ -1,7 +1,7 @@
 {
   "name": "dsh-baize-session",
   "description": "Pick messages out of DeepSeek Harness sessions and relocate them into another session's opening context (Baize).",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "type": "module",
   "engines": {

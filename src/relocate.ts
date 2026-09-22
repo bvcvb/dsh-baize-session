@@ -31,6 +31,7 @@ import {
   type CollectedItem,
   type MessageRef,
 } from './core.ts'
+import { getPersistence, listStored, readStored, type PersistenceLike } from './persistence.ts'
 
 /** Config subset the runtime needs (structural, so both callers pass their own). */
 export interface RelocationOptions {
@@ -113,9 +114,30 @@ export interface RelocateResult {
 interface SessionLike {
   readonly id: string
   readonly header?: { readonly cwd?: string; readonly createdAt?: number }
+  /** dsh ≤ 0.1.1-rc.2 exposed the log as a property. */
   readonly events?: readonly unknown[]
+  /** dsh ≥ 0.1.5: the whole log, a fork's inherited prefix included. */
+  snapshotEvents?(fromSeq?: number, toSeqExclusive?: number): readonly unknown[]
+  /** dsh ≥ 0.1.5: only this session's own appends (drops an inherited prefix). */
+  ownEvents?(): readonly unknown[]
   /** Third arg is the SurfaceIntent marker surface-eligible events require. */
   append(type: string, data: unknown, intent?: unknown): unknown
+}
+
+/**
+ * The events of a live session, across both published Session shapes.
+ *
+ * dsh 0.1.5 replaced the `events` **property** with methods: `snapshotEvents()`
+ * answers the whole log (inherited prefix included) and `ownEvents()` only this
+ * session's own appends. On that line `live.events` is `undefined` for *every*
+ * session, so each conversation read back as empty — and because "empty" means
+ * `blank`, the panel then filtered them all out of the target list. Prefer the
+ * method, falling back to the property so dsh ≤ 0.1.1-rc.2 is unaffected.
+ */
+const liveEventsOf = (live: SessionLike): readonly unknown[] => {
+  if (typeof live.snapshotEvents === 'function') return live.snapshotEvents()
+  if (Array.isArray(live.events)) return live.events
+  return []
 }
 
 /** Refusals we want surfaced verbatim to the caller. */
@@ -149,13 +171,14 @@ export function assertAbsolutePath(path: string): void {
 export function createRelocation(ctx: Context, options: RelocationOptions): RelocationRuntime {
   const baskets = new Map<string, CollectedItem[]>()
 
-  /** The persistence seam, reached through `ctx.get` exactly as official code does. */
-  const persistence = (): {
-    inspect(id: string, signal?: AbortSignal): Promise<{ meta?: { cwd?: string }; events: readonly unknown[] }>
-    load(id: string): Promise<{ meta?: { cwd?: string }; events: readonly unknown[] } | undefined>
-    list(signal?: AbortSignal): Promise<readonly { id: string; cwd?: string; createdAt?: number }[]>
-  } | undefined =>
-    (ctx as unknown as { get?(name: string): unknown }).get?.('sessionPersistence') as never
+  /**
+   * The persistence seam, reached through `ctx.get` exactly as official code does.
+   *
+   * Which read stack this answers (`inspect` on dsh 0.1.1-rc.2, the SessionHandle
+   * model on 0.1.7-alpha.1) is a runtime property of the running dsh, so every
+   * read goes through `./persistence.ts` rather than calling a named method here.
+   */
+  const persistence = (): PersistenceLike | undefined => getPersistence(ctx)
 
   /**
    * The workspace registry, also through `ctx.get`.
@@ -191,9 +214,11 @@ export function createRelocation(ctx: Context, options: RelocationOptions): Relo
   /**
    * Header + events of any conversation.
    *
-   * Live sessions answer from memory. A stored one is read back with `inspect`,
-   * which is the non-committing read (it never publishes or repairs), so
-   * merely browsing a conversation cannot disturb it.
+   * Live sessions answer from memory. A stored one is read back with the
+   * non-committing read of whichever persistence stack this dsh ships — rc.2's
+   * `inspect`, or alpha.1's `open(id, 'read')` — so merely browsing a
+   * conversation cannot disturb it. Both are wrapped, because a missing method
+   * throws synchronously and no `.catch()` on the call could intercept it.
    *
    * `readable` says whether the log was actually obtained. It matters for the
    * blank test below: "no events because the session is empty" and "no events
@@ -204,13 +229,13 @@ export function createRelocation(ctx: Context, options: RelocationOptions): Relo
     signal?: AbortSignal,
   ): Promise<{ events: readonly unknown[]; cwd: string; readable: boolean }> => {
     const live = session(sessionId)
-    if (live !== undefined) return { events: live.events ?? [], cwd: live.header?.cwd ?? '', readable: true }
+    if (live !== undefined) return { events: liveEventsOf(live), cwd: live.header?.cwd ?? '', readable: true }
     const store = persistence()
     if (store === undefined) return { events: [], cwd: '', readable: false }
-    const stored = await store.inspect(sessionId, signal).catch(() => undefined)
+    const stored = await readStored(store, sessionId, signal)
     return stored === undefined
       ? { events: [], cwd: '', readable: false }
-      : { events: stored.events ?? [], cwd: stored.meta?.cwd ?? '', readable: true }
+      : { events: stored.events, cwd: stored.meta.cwd ?? '', readable: true }
   }
 
   /**
@@ -267,7 +292,7 @@ export function createRelocation(ctx: Context, options: RelocationOptions): Relo
     // Live sessions answer from memory: events are already in hand.
     for (const live of ctx.sessions.list() as unknown as SessionLike[]) {
       seen.add(live.id)
-      const events = live.events ?? []
+      const events = liveEventsOf(live)
       out.push({
         id: live.id,
         cwd: live.header?.cwd ?? '',
@@ -282,7 +307,7 @@ export function createRelocation(ctx: Context, options: RelocationOptions): Relo
     }
     const store = persistence()
     if (store !== undefined) {
-      const cold = await store.list(signal).catch(() => [])
+      const cold = await listStored(store, signal)
       const pending = cold.filter(meta => !seen.has(meta.id))
       // Read every closed conversation at once; the whole set is small (every
       // test log here is a few hundred KB at most) and this is one round trip

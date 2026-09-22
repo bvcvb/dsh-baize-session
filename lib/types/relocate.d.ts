@@ -99,7 +99,12 @@ interface SessionLike {
         readonly cwd?: string;
         readonly createdAt?: number;
     };
+    /** dsh ≤ 0.1.1-rc.2 exposed the log as a property. */
     readonly events?: readonly unknown[];
+    /** dsh ≥ 0.1.5: the whole log, a fork's inherited prefix included. */
+    snapshotEvents?(fromSeq?: number, toSeqExclusive?: number): readonly unknown[];
+    /** dsh ≥ 0.1.5: only this session's own appends (drops an inherited prefix). */
+    ownEvents?(): readonly unknown[];
     /** Third arg is the SurfaceIntent marker surface-eligible events require. */
     append(type: string, data: unknown, intent?: unknown): unknown;
 }

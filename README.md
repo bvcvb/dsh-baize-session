@@ -46,7 +46,7 @@ The name comes from **Baize (白泽)** — a mythical beast said to understand a
 
 ```bash
 # Install from npm into the web profile (use the actual published version)
-dsh plugin --profile web add dsh-baize-session@0.1.0
+dsh plugin --profile web add dsh-baize-session@0.1.1
 pm2 restart dsh          # Reload when dsh is managed by pm2
 dsh --profile web
 ```
@@ -69,7 +69,7 @@ writes no data of its own (see [Data location](#data-location)).
 Install into a **separate profile** so your currently running dsh stays unchanged:
 
 ```bash
-dsh plugin --profile smoke add dsh-baize-session@0.1.0
+dsh plugin --profile smoke add dsh-baize-session@0.1.1
 dsh --profile smoke --dump-config   # compose the config only — does not boot dsh
 ```
 

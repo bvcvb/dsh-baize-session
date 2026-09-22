@@ -3,6 +3,55 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.1.1] - 2026-09-22
+
+### Fixed
+
+- **The 整理 pane no longer renders empty on dsh ≥ 0.1.5.** Two independent contract changes
+  combined into a *silent* failure: the pane appeared normally but had no message list and no target
+  conversation, with no error anywhere.
+  1. **`conversation.view` stopped being a session-scope seat (browser half).** `sessionId` is no
+     longer placed in the render props; the framework hands it to
+     `ctx.slots.register({ …, inject: (sessionId) => props })` instead — the same shape the official
+     `ui-trajectory` registrant uses. The registration now supplies it, which re-merges
+     `props.sessionId` (what `sessionIdOf()` already reads), so dsh ≤ 0.1.1-rc.2 keeps working.
+     Previously `sessionId` resolved to `''`, and `load()`'s first line (`if (!sessionId) return`)
+     returned silently, leaving the panel's state `null` forever.
+  2. **`Session.events` became methods (host half).** dsh ≥ 0.1.5 exposes `snapshotEvents()`,
+     `ownEvents()` and `eventAt()` and no longer has an `events` property, so `live.events ?? []`
+     answered `[]` for *every* session. Every conversation then read back as zero messages —
+     and since "no messages" means `blank`, the pane filtered them all out of the target list and
+     even lost their titles. A new `liveEventsOf()` prefers `snapshotEvents()` (the whole log,
+     inherited prefix included) and falls back to the property.
+
+- **The panel no longer fails on dsh 0.1.7-alpha.1 with `TypeError: store.inspect is not a
+  function`.** That dsh line replaced the `SessionPersistence` class with a service-definition
+  shell and moved the API to the SessionHandle model: `inspect`, `load`, `locate`, `readRaw`,
+  `coordinator` and `tracker` are gone, while `open(id, 'read')` → `handle.header` / `handle.read()`
+  and `list()` → `{ header, revision }[]` take their place. Every read now goes through a new
+  `src/persistence.ts` seam that detects the stack at runtime — never by version number — and uses
+  whichever shape the running dsh exposes. dsh 0.1.1-rc.2 keeps its previous code path unchanged.
+  - The failure was a **synchronous** `TypeError` raised by calling the absent method, so the old
+    `await store.inspect(...).catch(() => undefined)` guard could not absorb it and the panel
+    answered HTTP 500. Capability probes plus a wrapping `try/catch` now degrade to "unreadable"
+    instead of throwing.
+  - `list()` is normalized across both shapes (rc.2 returns the metadata itself; alpha.1 nests it
+    under `header`), and is called with the argument form the detected stack expects.
+  - A handle returned by `open()` is always closed in a `finally`, so browsing many conversations
+    cannot leak read channels.
+
+### Compatibility
+
+- Verified on **0.1.5-rc.2** (read paths 200, a live conversation returns its 24 messages) and on
+  **0.1.7-alpha.1** (same), while **0.1.1-rc.2** keeps its original code paths.
+
+### Known limitation
+
+- **Cross-workspace migration is unavailable on dsh 0.1.7-alpha.1**, because the members it needs
+  (`locate`, `readRaw`, `coordinator`, `tracker`) no longer exist there and have no published
+  replacement. The action now reports `当前持久化后端不支持定位会话工件，无法跨工作区迁移。` rather than
+  failing obscurely. Archive / restore / delete are unaffected.
+
 ## [0.1.0] - 2026-09-22
 
 First release. Two panes in one conversation tab: move context between conversations, and manage
