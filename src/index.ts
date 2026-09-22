@@ -28,6 +28,7 @@ import type {} from '@deepseek-ai/dsh-session-persistence'
 import { formatBasket } from './core.ts'
 import { createRelocation, RelocationError, type RelocationRuntime } from './relocate.ts'
 import { registerSessionApi } from './api.ts'
+import { createWorkspaceAdmin } from './workspace.ts'
 
 /** Cordis plugin name used by loader diagnostics and the injected message source. */
 export const name = 'baize-session'
@@ -131,7 +132,7 @@ async function handle(
           for (const item of items) {
             // Name first: sessions are identified by their logged title, which
             // is also what the picker shows; the id stays for `/baize-session add`.
-            lines.push(`  ${item.name || '(无标题)'}  ${item.id}`
+            lines.push(`  ${item.name || '[无标题]'}  ${item.id}`
               + `  消息 ${item.messages}${item.live ? '' : '  (未打开)'}${item.isCurrent ? '  ← 当前' : ''}`)
           }
         }
@@ -203,6 +204,10 @@ export function apply(ctx: Context, config: Config): void {
     })
   }, 'baize-session lifecycle')
 
+  // Workspace administration (the 工作区 tab): the same session listing the
+  // panel already relies on, plus ledger/artifact mutations on top of it.
+  const admin = createWorkspaceAdmin(ctx, { sessions: runtime.sessions })
+
   // Panel API — the browser half reads and writes everything through this.
-  ctx.effect(() => registerSessionApi(ctx, runtime), 'baize-session api')
+  ctx.effect(() => registerSessionApi(ctx, runtime, admin), 'baize-session api')
 }

@@ -38,6 +38,7 @@
     "test:watch": "vitest --watch",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "check:exports": "node scripts/check-exports.mjs",
     "prepublishOnly": "pnpm build"
   },
   "dsh": {

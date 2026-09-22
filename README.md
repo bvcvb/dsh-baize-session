@@ -5,15 +5,19 @@
 ![npm version](https://img.shields.io/npm/v/dsh-baize-session)
 ![license](https://img.shields.io/npm/l/dsh-baize-session)
 
-`dsh-baize-session` (Baize) is a [dsh](https://www.npmjs.com/package/@deepseek-ai/dsh) plugin that moves **context between conversations**: pick messages out of the conversation you are in, then carry them into another one — an existing conversation, or a brand-new one in a different workspace.
+`dsh-baize-session` (Baize) is a [dsh](https://www.npmjs.com/package/@deepseek-ai/dsh) plugin that does two things with conversations:
+
+- **Moves context between them** — pick messages out of the conversation you are in, then carry them into another one: an existing conversation, or a brand-new one in a different workspace.
+- **Manages the conversations of one workspace** — list them all (archived ones included), archive, restore, delete for real, and relocate to another workspace, from one tab.
 
 The name comes from **Baize (白泽)** — a mythical beast said to understand all things. Where [`dsh-baize-rules`](https://www.npmjs.com/package/dsh-baize-rules) injects *requirements*, this plugin relocates *context*.
+
+![The 整理 (Tidy) tab in the dsh web UI — the target workspace and target conversation dropdowns, the action bar showing the selected count and token estimate, and the message table with its USER / ASSISTANT / CONTEXT / TOOL badges](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/001-tidy-panel.png)
 
 - The picked messages are **rewritten as text** into a single `user/message` carrying `source.kind='plugin'`, `plugin='baize-session'` — not replayed as events. An arbitrary selection cannot be replayed: the session store validates that a seed is contiguous from seq 0, so a partial history is not a valid prefix.
 - The injected block ends with `当前工作区是 <path>。请在此基础上继续。` — the model is told that the quoted history came from other directories, with no path rewriting anywhere.
 - **No selection → nothing is written.** The plugin refuses an empty basket instead of injecting an empty frame.
-
-![The 整理 (Tidy) tab in the dsh web UI — the target workspace and target conversation dropdowns, the action bar showing the selected count and token estimate, and the message table with its USER / ASSISTANT / CONTEXT / TOOL badges](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/001-tidy-panel.png)
+- Everything destructive is **gated**: a conversation must be archived before it can be deleted, and an archived conversation cannot be moved at all.
 
 ---
 
@@ -21,16 +25,18 @@ The name comes from **Baize (白泽)** — a mythical beast said to understand a
 
 | Feature | Description |
 |---|---|
-| **Pick from the conversation you are in** | The 整理 tab lists this conversation's messages as a checkbox table. Click a row to read the full text, tick the checkbox to select it |
+| **Pick from the conversation you are in** | The 整理 pane lists this conversation's messages as a checkbox table. Click a row to read it whole; tick the checkbox to select it |
 | **Collect from anywhere** | A `＋` button sits next to every assistant reply, so material can be grabbed without leaving the chat flow. The basket is keyed per conversation |
 | **Two destinations** | **New conversation** in a chosen workspace (created with the content as its seed), or **append** to a conversation that is currently open |
-| **Cross-workspace by construction** | A new conversation is created with the target workspace as its `cwd`, so it lands in that workspace's session directory — moving context between workspaces needs no path rewriting |
-| **Named conversations, not ids** | The destination dropdown shows each conversation's own logged title (`session/title`), falling back to its opening line. The raw id lives in the tooltip |
-| **Only real conversations are offered** | Conversations that never ran a turn (the sidebar's provisional "new conversation" rows) and archived ones are filtered out — the same rule the official sidebar uses (`sessionVisible`) |
-| **Rows are labelled by author** | `user` / `assistant` / `context` / `tool`, with the colours of the official Trajectory view's kind tags. `context` matters: dsh logs human prompts and harness injections under the *same* `user/message` event type |
+| **Cross-workspace by construction** | A new conversation is created with the target workspace as its `cwd`, so it lands in that project's session directory — moving context between projects needs no path rewriting |
+| **Named conversations, not ids** | Pickers show each conversation's own logged title (`session/title`), falling back to its opening line. The raw id lives in the row's detail pane |
+| **Rows labelled by author** | `user` / `assistant` / `context` / `tool`, with the colours of the official Trajectory view's kind tags. `context` matters: dsh logs human prompts and harness injections under the *same* `user/message` event type |
 | **Token budget** | The rendered block is estimated before writing; a selection above `maxInjectTokens` is refused with the measured number instead of silently truncating |
-| **One runtime, two surfaces** | The panel and the `/baize-session` command drive the same `RelocationRuntime`, so they can never disagree |
-| **No files of its own** | The basket is in-memory only; every piece of durable state involved (sessions, workspaces, the archive set) belongs to dsh |
+| **Workspace management** | The 工作区 pane lists every conversation of the current workspace — archived ones included — with archive / restore / move / delete per row, plus multi-select for batch actions |
+| **Conversations move while open** | Relocating a conversation that is still in memory works: the plugin flushes it, rewrites its artifact under the coordinator's per-id lock, and retargets the persisted write path so later messages land in the new location |
+| **Only real conversations are offered as targets** | Blank and archived conversations are filtered out of the 整理 pane's destination picker — the same rule the official sidebar uses (`sessionVisible`) |
+| **One runtime, two surfaces** | The panel and the `/baize-session` command drive the same runtimes, so they can never disagree |
+| **No data files of its own** | The plugin keeps no state on disk of its own; what it changes (session artifacts, the workspace registry) belongs to dsh |
 
 ---
 
@@ -69,8 +75,6 @@ dsh --profile smoke --dump-config   # compose the config only — does not boot 
 
 ### Local development (link)
 
-If you haven't published yet, or want to pick up source changes live:
-
 ```jsonc
 // $DSH_HOME/profiles/web/package.json
 "dependencies": {
@@ -84,7 +88,15 @@ Then run `pnpm install` in the profile directory and add `dsh-baize-session` to 
 
 ## Quick Start
 
-Open any conversation and click the **整理** tab next to the chat view.
+Open any conversation and click the **整理** tab next to the chat view. That one tab holds two panes, switched by the tabs in its title row:
+
+```
+[对话] [轨迹] [规则] [整理]          ← the top tab strip (this plugin owns 整理 only)
+──────────────────────────────────
+ 整理 | 工作区                       ← the two panes
+```
+
+### 整理 — move messages into another conversation
 
 ```
 ① target workspace   [ /home/abc/work/plugin        ▾ ]
@@ -101,6 +113,27 @@ Open any conversation and click the **整理** tab next to the chat view.
 2. Pick the conversation — `New conversation`, or any real conversation in that workspace.
 3. Tick the messages to carry over. Clicking a row shows its full text and does **not** select it.
 4. Press **Relocate**.
+
+### 工作区 — manage this workspace's conversations
+
+```
+Workspace: /home/abc/current/test        [ All 7 ] [ Active 6 ] [ Archived 1 ]
+─────────────────────────────────────────────────────────────────────────────
+Selected 0 items                         [ Archive ] [ Restore ] [ Move ] [ Delete ]
+─────────────────────────────────────────────────────────────────────────────
+☑ 问候与自我介绍     已对话  未打开   09-15 17:58 · 24 messages   [ Archive ] [ Move ]
+☑ 测试              已对话  进行中   09-20 12:42 · 31 messages   [ Archive ] [ Move ]
+☐ 已归档的对话       已对话  已归档   09-20 12:42 · 6 messages    [ Restore ] [ Delete ]
+```
+
+| Action | Where | Rule |
+|---|---|---|
+| **Archive** | row button, or batch bar | any conversation, open or closed |
+| **Restore** | row button, or batch bar | archived conversations only |
+| **Move** to another workspace | row button, or batch bar | **not archived**; works for open conversations too |
+| **Delete** (removes the stored log) | row button, or batch bar | **archived only**, and needs a second click to confirm |
+
+Clicking a row (anywhere except a button or a checkbox) expands its detail line: the full session id, creation time, message count, workspace path and whether it is currently open.
 
 The same operations are reachable from the keyboard:
 
@@ -128,16 +161,39 @@ The same operations are reachable from the keyboard:
 
 ---
 
-## The panel (整理 tab)
+## Conversation kind and state
 
-The tab is registered on the `conversation.view` seat (id `baize-session-tidy`, order 40) — purely additive: no official component is replaced. The `＋` button is registered on `conversation.chat.assistant-actions` (id `baize-session-collect`, order 20).
+Every row in the 工作区 pane carries **two independent badges**, because they answer different questions:
+
+| Column | Values | Question it answers | Rule |
+|---|---|---|---|
+| **kind** | `空对话` / `已对话` / `子代理` | is there a conversation in it yet? | `blank` — no `turn/start` has ever been logged |
+| **state** | `进行中` / `已打开` / `未打开` / `已归档` | where does it live right now? | an agent is attached / held in memory / stored on disk / in the archive set |
+
+They are not alternatives. An **empty conversation can be in progress** — an agent is attached the moment a conversation is created, before its first prompt — and a conversation with content can be closed. Folding the two into one badge said one thing at the cost of the other.
+
+`已归档` outranks the rest of the state column (it is what the sidebar hides on), and `子代理` outranks kind (a subagent child cannot be moved).
+
+---
+
+## The panel
+
+Both panes live inside the **one** `conversation.view` tab this plugin owns (id `baize-session-tidy`, order 40) — purely additive: no official component is replaced. The `＋` button is registered on `conversation.chat.assistant-actions` (id `baize-session-collect`, order 20).
+
+Shared behaviour:
 
 | Interaction | Result |
 |---|---|
-| Click a message row | Expand/collapse that message's **full text** (the table itself only shows the first line) |
-| Click a checkbox | Select/deselect that message; the detail stays as it is |
-| Click the destination dropdown | A self-drawn popover (native `<select>` does not match the dsh theme); click outside or press Escape to close |
-| Workspace dropdown last entry | `手填绝对路径…` reveals a text field for a workspace that is not registered yet |
+| Click a row | Expand/collapse that row's **full text** (整理) or its **detail line** (工作区). Neither selects it |
+| Click a checkbox | Select/deselect; the detail stays as it is |
+| The action bar | Always present, the same `.baize-bar` in both panes. Its buttons are **disabled, not hidden**, while nothing is selected |
+| Dropdowns | Self-drawn popovers (a native `<select>` does not match the dsh theme); click outside or press Escape to close |
+
+整理 pane specifics: the content list is always the current conversation; the message table grows and shrinks with the window (no fixed height).
+
+工作区 pane specifics: the title/filter row and the tab row are both 32px so nothing sits lower than its neighbour; the kind and state columns are a fixed 76px each and the time column a fixed 150px, so they line up down the table instead of drifting with the label lengths.
+
+![A message row expanded: the full text sits below the row under a badge + #seq + character count, while the checkbox on the row is what selects it](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
 
 Message rows are labelled by author:
 
@@ -149,8 +205,6 @@ Message rows are labelled by author:
 | `TOOL` | A tool result (`tool/result` events) | `.toolAmber` |
 
 `user/message` is **not** a synonym for "the user said this": dsh stores human prompts and injected context under that one event type, separated only by `data.source.kind`. In a sampled real session the split was `{user: 4, plugin: 10}` — most of that conversation was never typed by anyone, which is exactly why the two are badged differently.
-
-![A message row expanded: the full text sits below the row under a badge + #seq + character count, while the checkbox on the row is what selects it](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
 
 ---
 
@@ -176,22 +230,43 @@ assistant: in relocate.ts, before the write — it throws instead of truncating.
 
 ---
 
-## What is and isn't listed
+## Which conversations are listed
 
-Targets are filtered with the same rule the official sidebar uses (`sessionVisible` in `dsh-client-ui-workspace`):
+The two panes filter differently, on purpose:
 
-| Case | Behaviour | Why |
+| | 整理 — destination picker | 工作区 — the table |
 |---|---|---|
-| A conversation that never ran a turn (`blank`) | **Not listed** | The sidebar renders those as the workspace's provisional "New conversation" row with a fixed label; its real title never shows. `New conversation` is that row's equivalent here |
-| An archived conversation (registry-global archive set) | **Not listed** | Archiving is a global set dsh keeps in `$DSH_HOME/storages/workspace.json`; the sidebar hides members. Reading it is best-effort: if the set cannot be read, nothing is hidden |
-| A conversation whose log cannot be read | Listed (conservatively treated as non-blank) | Matches the official rule: "unavailable or oversized artifacts conservatively report false" |
-| A closed (not open) conversation as an **append** target | Refused: `目标会话不在内存中，无法追加（先在侧边栏打开它）。` | Appending needs the live session; open it from the sidebar first |
-| A closed conversation as a **content source** | Allowed | Its log is read back with `persistence.inspect()` — a read that neither commits recovery nor publishes, so browsing cannot disturb it |
-| A workspace with no real conversation | Still listed (with no count) | That is precisely the "create a new conversation here" case. The workspace list itself comes from `ctx.workspaceRegistry.list()`, never derived from session `cwd`s |
-| A directory with real conversations but no workspace record | Listed and marked `未分组` | The sidebar puts such sessions in its "Ungrouped" bucket; without this the conversations would become unreachable from the picker |
-| The conversation you are in | Not offered as a destination | Relocating into itself is not a meaningful target |
+| Blank (no turn ever ran) | **hidden** | listed, kind `空对话` |
+| Archived | **hidden** | listed, state `已归档` (until you filter them out) |
+| Subagent children | hidden | listed, kind `子代理` |
+| Everything else | listed, by name | listed, by name |
 
-**One consequence worth knowing:** right after relocating into `New conversation`, that new conversation is itself `blank`, so it does not appear in the destination list yet. Open it from the sidebar and say something — dsh then generates its title and it becomes a normal target. That is the sidebar's behaviour too, not a limitation of this plugin.
+The 整理 picker exists to answer "where can this go", so it offers only destinations that make sense; the 工作区 table exists to answer "what is in here", so it shows everything and lets you act on it. Both come from the same session listing, so they can never contradict each other.
+
+---
+
+## Rules the operations enforce
+
+| Operation | Refused when | Message |
+|---|---|---|
+| Relocate into an existing conversation | the target is not open (not in memory) | `目标会话不在内存中，无法追加（先在侧边栏打开它）。` |
+| Relocate | the basket is empty, or the estimate exceeds `maxInjectTokens` | the refusal names the measured size |
+| Relocate | the target path is relative | `目标路径必须是绝对路径：…` |
+| Archive / Restore | the live registry exposes no write path (very old dsh) | `当前 dsh 版本未暴露…接口` |
+| **Delete** | the conversation is **not archived** | `只能删除已归档的对话：请先归档，再删除。` |
+| **Delete** | the request lacks `confirm: true` | `删除需要显式确认（confirm: true）。` |
+| **Move** | the conversation is **archived** | `已归档的对话不能迁移：请先还原它。` |
+| **Move** | the conversation is a subagent child | `子代理会话不支持跨工作区迁移。` |
+| **Move** | the persisted artifact cannot be located | `当前持久化后端不支持定位会话工件，无法跨工作区迁移。` |
+| **Move** | nothing is known that would point later writes at the new artifact | `当前运行时既不暴露 live 写入器、也不暴露持久化写入状态…` |
+
+How a move actually works, in order — a conversation belongs to a workspace through its `cwd`, and the registry refuses to attach a session whose stored cwd disagrees with the workspace path, so the artifact is rewritten first and the ledger second:
+
+1. If the conversation is **open**, flush its buffered events to the current artifact first.
+2. Under the persistence coordinator's per-id lock (when the backend offers one), read the artifact, rewrite **only** the header line's `cwd` (keeping `version`), and write it to the path that cwd implies — through a temp file and atomic renames, with the original parked so a failure can put the bytes back.
+3. Move the in-memory pointers with it: the live write state (`meta.cwd`), the in-memory session header, and the registry's header/path indexes — all restored together if the ledger swap fails.
+4. Detach from the old workspace, attach to the new one, then drop the emptied old directory.
+5. If anything fails, the original bytes go back to their original path. This matters more than it sounds: dsh validates at startup that a session's location matches its header `cwd`, and a mismatched pair makes it refuse to boot the whole plugin tree.
 
 ---
 
@@ -217,48 +292,55 @@ The shipped patch is exactly this — add `listLimit` to the same `config` block
 
 ## HTTP API
 
-The browser half has no way to read a session or create one, so the panel talks to
-`/baize-session.api` on the host web server. It delegates to the same runtime the command uses.
+The browser half has no way to read a session, create one, or touch the workspace registry, so the panel talks to `/baize-session.api` on the host web server. It delegates to the same runtimes the command uses.
 
 | Request | Body / query | Returns |
 |---|---|---|
-| `GET /baize-session.api` | `?sessionId=<id>` (required), `&source=<id>` to list another conversation's messages | `PanelState`: `{ sessionId, cwd, messages, basket, projects, sessions, maxInjectTokens }` |
+| `GET /baize-session.api` | `?sessionId=<id>` (required); `&source=<id>` lists another conversation's messages; `&view=workspace` returns the workspace pane instead | `PanelState` `{ sessionId, cwd, messages, basket, projects, sessions, maxInjectTokens }` — or, with `view=workspace`, `WorkspacePanel` `{ workspace?, workspaces, sessions }` |
 | `POST /baize-session.api` | `{ sessionId, op: 'take', seqs?, messageIds?, sourceId? }` | `{ ok, added, missing, state }` |
 | | `{ sessionId, op: 'untake', seq?, messageId?, sourceId? }` | `{ ok, removed, state }` |
 | | `{ sessionId, op: 'drop' }` | `{ ok, state }` |
 | | `{ sessionId, op: 'estimate', target }` | `{ ok, tokens }` |
 | | `{ sessionId, op: 'relocate', target }` | `{ ok, sessionId, mode, tokens, sources, state }` |
+| | `{ sessionId, op: 'archive' \| 'restore', targetId \| targetIds }` | `{ ok, results, panel }` |
+| | `{ sessionId, op: 'deleteSession', targetIds, confirm: true }` | `{ ok, results, panel }` |
+| | `{ sessionId, op: 'moveSession', targetIds, toWorkspaceId }` | `{ ok, results, panel }` |
 
-`target` is `{ kind: 'new', cwd }` or `{ kind: 'existing', sessionId }`. Refusals a user can act on
-(relative path, empty basket, cold append target, over budget) come back as `400` with a message meant
-to be shown verbatim; everything else is a `500`.
+- `target` is `{ kind: 'new', cwd }` or `{ kind: 'existing', sessionId }`.
+- `targetId` (one row) and `targetIds` (multi-select) are interchangeable on the workspace ops.
+- Batch results are reported **per id** (`results: [{ id, ok, error? }]`), so one refusal does not abort the rest; `ok: false` on the envelope means every id failed. Every workspace op answers with the refreshed panel, so the UI needs one round trip per action.
+- Refusals a user can act on (relative path, empty basket, cold append target, over budget, not archived, missing confirm, archived move) come back as `400` with a message meant to be shown verbatim; everything else is a `500`.
 
 ---
 
 ## Data location
 
-**This plugin stores nothing of its own.** The basket lives in memory for the lifetime of the process, so it is empty after a restart — that is the intended scope of "selected for this move".
+**This plugin keeps no state of its own** — no config file, no cache, no index. The basket lives in memory for the lifetime of the process, so it is empty after a restart; that is the intended scope of "selected for this move".
 
-Everything it touches belongs to dsh:
+What it *changes* belongs to dsh:
 
-| Path | What |
-|---|---|
-| `$DSH_HOME/sessions/<escaped-cwd>/<session-id>/session.jsonl.zstd` | The conversations themselves (multi-frame zstd), read back only for closed conversations |
-| `$DSH_HOME/storages/workspace.json` | Workspace records and the registry-global archived-session set |
+| Path | Read | Written |
+|---|---|---|
+| `$DSH_HOME/sessions/<escaped-cwd>/<session-id>/session.jsonl.zstd` | conversation logs — closed ones are read back with `inspect`, which neither commits recovery nor publishes | only by **move** (header `cwd` rewritten, file relocated) and **delete** (removed) |
+| `$DSH_HOME/storages/workspace.json` | workspace records, the registry-global archived-session set | only by **archive** / **restore** / **move** |
+
+Nothing else is touched, and an uninstall leaves nothing behind.
 
 ---
 
 ## Module structure
 
 ```
-src/core.ts       Pure logic: event reading/role classification/user/assistant/context/tool, message listing, renderInjection, session naming
-src/relocate.ts   The runtime: baskets, panel state, take/untake/drop/estimate/relocate, workspace + persistence access
-src/api.ts        Host HTTP API: GET state + POST op dispatch on /baize-session.api
-src/index.ts      apply: createRelocation + /baize-session command + API mount (inject: commands/sessions/tokenMeter/webServer/sessionPersistence)
-lib/client.js     Browser half, HAND-AUTHORED: the 整理 tab + the ＋ seat, window.__ModuleLoader__.load({ id, factory })
+src/core.ts        Pure logic: event reading + author classification, message listing, renderInjection, session naming, artifact encode/rewrite helpers
+src/relocate.ts    The relocation runtime: baskets, panel state, take/untake/drop/estimate/relocate, workspace + persistence access
+src/workspace.ts   The workspace runtime: conversation listing, archive/restore, delete (agent teardown, live-store detach, artifact removal), cross-workspace move (header rewrite, atomic rename, ledger swap)
+src/api.ts         Host HTTP API: GET state (both panes) + POST op dispatch on /baize-session.api
+src/index.ts       apply: both runtimes + /baize-session command + API mount (inject: commands/sessions/tokenMeter/webServer/sessionPersistence)
+lib/client.js      Browser half, HAND-AUTHORED: the 整理 view with its two panes + the ＋ seat, window.__ModuleLoader__.load({ id, factory })
 test/core.spec.ts        Unit tests for the pure helpers (real logged event shapes as fixtures)
+test/workspace.spec.ts   Unit tests for the artifact codec a move relies on (zstd frame layout, header rewrite, round-trip)
 test/client.smoke.mjs    Renders the real client bundle with react-test-renderer and asserts its behaviour
-cordis.patch.yml  Mount metadata (inserts the baize-session plugin line + default config)
+cordis.patch.yml   Mount metadata (inserts the baize-session plugin line + default config)
 ```
 
 **Public entry points** (see `package.json` `exports`): `.` (index), `./client`, `./src/*`, `./package.json`.
@@ -284,7 +366,12 @@ pnpm typecheck       # tsc --noEmit
 outside the dsh repository writes the `window.__ModuleLoader__.load({ id, factory })` shell itself and
 keeps only the seed modules external (`react`, the ui-primitives). Nothing type-checks or bundles it, so
 `test/client.smoke.mjs` loads the real bundle against `react-test-renderer` with a stubbed host API and
-asserts the panel's layout, its interaction order, the role badges and its CSS rules.
+asserts the panes' layout, their interaction order, the badges and their CSS rules.
+
+> **Testing the destructive paths.** Delete and move rewrite durable state, so they are exercised against
+> **purpose-built test conversations** in an isolated dsh instance — never against a conversation anyone
+> cares about. A move is validated by continuing to write to the moved conversation afterwards and
+> confirming the message lands at the new path.
 
 ---
 

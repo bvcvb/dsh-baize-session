@@ -1,0 +1,69 @@
+name: CI
+
+# Releases are cut from a `v*` tag and the `publish` job below is wired to it — but that job
+# needs the `NPM_TOKEN` secret. Until the secret exists, `npm publish --access public` run
+# locally is what actually ships a version; the tag run still serves as the build+test gate.
+# See README §Publishing.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      # The committed `lib/` must be exactly what `src/` compiles to: the package ships
+      # it, and without this step a stale artifact would ship unnoticed.
+      - run: git diff --exit-code -- lib
+      # The client half is hand-authored and outside `tsc`, so it gets its own gates:
+      # a syntax check, then the smoke test that renders the real bundle and asserts
+      # both panes' layout, their interaction order and their badge/state styles.
+      - run: node --check lib/client.js
+      - run: pnpm test
+      # Every path `package.json` promises (exports/main/types/files) must exist.
+      - run: pnpm check:exports
+
+  publish:
+    name: Publish to npm
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm check:exports
+      # The tag is the version of record: never publish a package that disagrees with it.
+      - name: Assert the tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
