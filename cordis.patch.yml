@@ -1,0 +1,14 @@
+# dsh-baize-session bundle patch
+#
+# This file is the `dsh.bundle.patch` layer of the published npm package. When
+# installed via `dsh plugin --profile <name> add dsh-baize-session@<version>`,
+# the command reconciles `dsh.profile.bundles` against installed packages and
+# mounts this patch (a single `insert` of the plugin row).
+#
+# `maxInjectTokens` guards how much collected history may be injected in one go;
+# the command refuses (and reports the estimate) when the render exceeds it.
+- insert:
+    - id: baize-session
+      name: 'dsh-baize-session'
+      config:
+        maxInjectTokens: 8000
