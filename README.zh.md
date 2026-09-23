@@ -115,6 +115,8 @@ dsh --profile smoke --dump-config   # 只组装并打印配置，不启动 dsh
 3. 勾选要带走的条目。点行只是看全文，**不会**选中它。
 4. 点**迁移**。
 
+![点开的消息行：完整正文展开在该行下方，带来源徽章、#seq 与字数；真正用于选中它的是行上的复选框](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
+
 ### 工作区 —— 管理这个工作区里的对话
 
 ![「工作区」面板：顶部是工作区路径与「全部 / 未归档 / 已归档」筛选及各自条数，下面是批量操作条，表格行上并列显示类型徽章与状态徽章，行尾是该行的归档与迁移按钮](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
@@ -195,8 +197,6 @@ dsh --profile smoke --dump-config   # 只组装并打印配置，不启动 dsh
 「整理」面板的特点：内容列表始终是当前对话；消息表格随窗口高度伸缩（没有固定高度）。
 
 「工作区」面板的特点：标题+筛选行与子标签行都是 32px，因此没有任何一行比邻居低；类型列与状态列各固定 76px、时间列固定 150px，所以它们纵向对齐，不会随标签长短漂移。
-
-![点开的消息行：完整正文展开在该行下方，带来源徽章、#seq 与字数；真正用于选中它的是行上的复选框](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
 
 消息行按来源打标：
 

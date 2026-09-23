@@ -114,6 +114,8 @@ Open any conversation and click the **整理** tab next to the chat view. That o
 3. Tick the messages to carry over. Clicking a row shows its full text and does **not** select it.
 4. Press **Relocate**.
 
+![A message row expanded: the full text sits below the row under a badge + #seq + character count, while the checkbox on the row is what selects it](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
+
 ### 工作区 — manage this workspace's conversations
 
 ![The 工作区 (Workspace) pane: the workspace path with its All / Active / Archived filters and counts, the batch bar, and conversation rows showing the kind badge and the state badge next to their per-row Archive and Move buttons](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
@@ -194,8 +196,6 @@ Shared behaviour:
 整理 pane specifics: the content list is always the current conversation; the message table grows and shrinks with the window (no fixed height).
 
 工作区 pane specifics: the title/filter row and the tab row are both 32px so nothing sits lower than its neighbour; the kind and state columns are a fixed 76px each and the time column a fixed 150px, so they line up down the table instead of drifting with the label lengths.
-
-![A message row expanded: the full text sits below the row under a badge + #seq + character count, while the checkbox on the row is what selects it](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
 
 Message rows are labelled by author:
 
