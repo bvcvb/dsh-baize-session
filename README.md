@@ -1,6 +1,6 @@
 # dsh-baize-session
 
-**[English](README.md) | [简体中文](README.zh.md)**　—　中文说明见 [README.zh.md](README.zh.md)。
+**[English](README.md) | [简体中文](README.zh.md)**　—　Chinese documentation: [README.zh.md](README.zh.md).
 
 ![npm version](https://img.shields.io/npm/v/dsh-baize-session)
 ![license](https://img.shields.io/npm/l/dsh-baize-session)
@@ -12,7 +12,7 @@
 
 The name comes from **Baize (白泽)** — a mythical beast said to understand all things. Where [`dsh-baize-rules`](https://www.npmjs.com/package/dsh-baize-rules) injects *requirements*, this plugin relocates *context*.
 
-![The 整理 (Tidy) tab in the dsh web UI — the target workspace and target conversation dropdowns, the action bar showing the selected count and token estimate, and the message table with its USER / ASSISTANT / CONTEXT / TOOL badges](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/001-tidy-panel.png)
+![The Tidy tab in the dsh web UI — the target workspace and target conversation dropdowns, the action bar showing the selected count and token estimate, and the message table with its USER / ASSISTANT / CONTEXT / TOOL badges](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/001-tidy-panel.png)
 
 - The picked messages are **rewritten as text** into a single `user/message` carrying `source.kind='plugin'`, `plugin='baize-session'` — not replayed as events. An arbitrary selection cannot be replayed: the session store validates that a seed is contiguous from seq 0, so a partial history is not a valid prefix.
 - The injected block ends with `当前工作区是 <path>。请在此基础上继续。` — the model is told that the quoted history came from other directories, with no path rewriting anywhere.
@@ -25,16 +25,16 @@ The name comes from **Baize (白泽)** — a mythical beast said to understand a
 
 | Feature | Description |
 |---|---|
-| **Pick from the conversation you are in** | The 整理 pane lists this conversation's messages as a checkbox table. Click a row to read it whole; tick the checkbox to select it |
+| **Pick from the conversation you are in** | The Tidy pane lists this conversation's messages as a checkbox table. Click a row to read it whole; tick the checkbox to select it |
 | **Collect from anywhere** | A `＋` button sits next to every assistant reply, so material can be grabbed without leaving the chat flow. The basket is keyed per conversation |
 | **Two destinations** | **New conversation** in a chosen workspace (created with the content as its seed), or **append** to a conversation that is currently open |
 | **Cross-workspace by construction** | A new conversation is created with the target workspace as its `cwd`, so it lands in that project's session directory — moving context between projects needs no path rewriting |
 | **Named conversations, not ids** | Pickers show each conversation's own logged title (`session/title`), falling back to its opening line. The raw id lives in the row's detail pane |
 | **Rows labelled by author** | `user` / `assistant` / `context` / `tool`, with the colours of the official Trajectory view's kind tags. `context` matters: dsh logs human prompts and harness injections under the *same* `user/message` event type |
 | **Token budget** | The rendered block is estimated before writing; a selection above `maxInjectTokens` is refused with the measured number instead of silently truncating |
-| **Workspace management** | The 工作区 pane lists every conversation of the current workspace — archived ones included — with archive / restore / move / delete per row, plus multi-select for batch actions |
+| **Workspace management** | The Workspace pane lists every conversation of the current workspace — archived ones included — with archive / restore / move / delete per row, plus multi-select for batch actions |
 | **Conversations move while open** | Relocating a conversation that is still in memory works: the plugin flushes it, rewrites its artifact under the coordinator's per-id lock, and retargets the persisted write path so later messages land in the new location |
-| **Only real conversations are offered as targets** | Blank and archived conversations are filtered out of the 整理 pane's destination picker — the same rule the official sidebar uses (`sessionVisible`) |
+| **Only real conversations are offered as targets** | Blank and archived conversations are filtered out of the Tidy pane's destination picker — the same rule the official sidebar uses (`sessionVisible`) |
 | **One runtime, two surfaces** | The panel and the `/baize-session` command drive the same runtimes, so they can never disagree |
 | **No data files of its own** | The plugin keeps no state on disk of its own; what it changes (session artifacts, the workspace registry) belongs to dsh |
 
@@ -88,15 +88,15 @@ Then run `pnpm install` in the profile directory and add `dsh-baize-session` to 
 
 ## Quick Start
 
-Open any conversation and click the **整理** tab next to the chat view. That one tab holds two panes, switched by the tabs in its title row:
+Open any conversation and click the **Tidy** tab next to the chat view. That one tab holds two panes, switched by the tabs in its title row:
 
 ```
-[对话] [轨迹] [规则] [整理]          ← the top tab strip (this plugin owns 整理 only)
+[Chat] [Trajectory] [Rules] [Tidy]   ← the top tab strip (this plugin owns Tidy only)
 ──────────────────────────────────
- 整理 | 工作区                       ← the two panes
+ Tidy | Workspace                    ← the two panes
 ```
 
-### 整理 — move messages into another conversation
+### Tidy — move messages into another conversation
 
 ```
 ① target workspace   [ /home/abc/work/plugin        ▾ ]
@@ -116,18 +116,18 @@ Open any conversation and click the **整理** tab next to the chat view. That o
 
 ![A message row expanded: the full text sits below the row under a badge + #seq + character count, while the checkbox on the row is what selects it](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/002-message-detail.png)
 
-### 工作区 — manage this workspace's conversations
+### Workspace — manage this workspace's conversations
 
-![The 工作区 (Workspace) pane: the workspace path with its All / Active / Archived filters and counts, the batch bar, and conversation rows showing the kind badge and the state badge next to their per-row Archive and Move buttons](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
+![The Workspace pane: the workspace path with its All / Active / Archived filters and counts, the batch bar, and conversation rows showing the kind badge and the state badge next to their per-row Archive and Move buttons](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
 
 ```
 Workspace: /home/abc/current/test        [ All 7 ] [ Active 6 ] [ Archived 1 ]
 ─────────────────────────────────────────────────────────────────────────────
 Selected 0 items                         [ Archive ] [ Restore ] [ Move ] [ Delete ]
 ─────────────────────────────────────────────────────────────────────────────
-☑ 问候与自我介绍     已对话  未打开   09-15 17:58 · 24 messages   [ Archive ] [ Move ]
-☑ 测试              已对话  进行中   09-20 12:42 · 31 messages   [ Archive ] [ Move ]
-☐ 已归档的对话       已对话  已归档   09-20 12:42 · 6 messages    [ Restore ] [ Delete ]
+☑ Greeting               chatted  not open  09-15 17:58 · 24 messages   [ Archive ] [ Move ]
+☑ Test                   chatted  running   09-20 12:42 · 31 messages   [ Archive ] [ Move ]
+☐ Archived conversation  chatted  archived  09-20 12:42 · 6 messages    [ Restore ] [ Delete ]
 ```
 
 | Action | Where | Rule |
@@ -167,16 +167,16 @@ The same operations are reachable from the keyboard:
 
 ## Conversation kind and state
 
-Every row in the 工作区 pane carries **two independent badges**, because they answer different questions:
+Every row in the Workspace pane carries **two independent badges**, because they answer different questions:
 
 | Column | Values | Question it answers | Rule |
 |---|---|---|---|
-| **kind** | `空对话` / `已对话` / `子代理` | is there a conversation in it yet? | `blank` — no `turn/start` has ever been logged |
-| **state** | `进行中` / `已打开` / `未打开` / `已归档` | where does it live right now? | an agent is attached / held in memory / stored on disk / in the archive set |
+| **kind** | `empty` / `chatted` / `subagent` | is there a conversation in it yet? | `blank` — no `turn/start` has ever been logged |
+| **state** | `running` / `open` / `not open` / `archived` | where does it live right now? | an agent is attached / held in memory / stored on disk / in the archive set |
 
 They are not alternatives. An **empty conversation can be in progress** — an agent is attached the moment a conversation is created, before its first prompt — and a conversation with content can be closed. Folding the two into one badge said one thing at the cost of the other.
 
-`已归档` outranks the rest of the state column (it is what the sidebar hides on), and `子代理` outranks kind (a subagent child cannot be moved).
+`archived` outranks the rest of the state column (it is what the sidebar hides on), and `subagent` outranks kind (a subagent child cannot be moved).
 
 ---
 
@@ -188,14 +188,14 @@ Shared behaviour:
 
 | Interaction | Result |
 |---|---|
-| Click a row | Expand/collapse that row's **full text** (整理) or its **detail line** (工作区). Neither selects it |
+| Click a row | Expand/collapse that row's **full text** (Tidy) or its **detail line** (Workspace). Neither selects it |
 | Click a checkbox | Select/deselect; the detail stays as it is |
 | The action bar | Always present, the same `.baize-bar` in both panes. Its buttons are **disabled, not hidden**, while nothing is selected |
 | Dropdowns | Self-drawn popovers (a native `<select>` does not match the dsh theme); click outside or press Escape to close |
 
-整理 pane specifics: the content list is always the current conversation; the message table grows and shrinks with the window (no fixed height).
+Tidy pane specifics: the content list is always the current conversation; the message table grows and shrinks with the window (no fixed height).
 
-工作区 pane specifics: the title/filter row and the tab row are both 32px so nothing sits lower than its neighbour; the kind and state columns are a fixed 76px each and the time column a fixed 150px, so they line up down the table instead of drifting with the label lengths.
+Workspace pane specifics: the title/filter row and the tab row are both 32px so nothing sits lower than its neighbour; the kind and state columns are a fixed 76px each and the time column a fixed 150px, so they line up down the table instead of drifting with the label lengths.
 
 Message rows are labelled by author:
 
@@ -211,6 +211,8 @@ Message rows are labelled by author:
 ---
 
 ## What gets injected
+
+The header and the trailing line inside this block are Chinese: the host side has no translation layer, so every dsh injects the same text regardless of the UI language.
 
 One `user/message` per relocation, built with `createUserMessage()` and published with the surface marker `{ surfaceOp: 'append' }` that surface-eligible events require:
 
@@ -236,14 +238,14 @@ assistant: in relocate.ts, before the write — it throws instead of truncating.
 
 The two panes filter differently, on purpose:
 
-| | 整理 — destination picker | 工作区 — the table |
+| | Tidy — destination picker | Workspace — the table |
 |---|---|---|
-| Blank (no turn ever ran) | **hidden** | listed, kind `空对话` |
-| Archived | **hidden** | listed, state `已归档` (until you filter them out) |
-| Subagent children | hidden | listed, kind `子代理` |
+| Blank (no turn ever ran) | **hidden** | listed, kind `empty` |
+| Archived | **hidden** | listed, state `archived` (until you filter them out) |
+| Subagent children | hidden | listed, kind `subagent` |
 | Everything else | listed, by name | listed, by name |
 
-The 整理 picker exists to answer "where can this go", so it offers only destinations that make sense; the 工作区 table exists to answer "what is in here", so it shows everything and lets you act on it. Both come from the same session listing, so they can never contradict each other.
+The Tidy picker exists to answer "where can this go", so it offers only destinations that make sense; the Workspace table exists to answer "what is in here", so it shows everything and lets you act on it. Both come from the same session listing, so they can never contradict each other.
 
 ---
 
@@ -261,6 +263,8 @@ The 整理 picker exists to answer "where can this go", so it offers only destin
 | **Move** | the conversation is a subagent child | `子代理会话不支持跨工作区迁移。` |
 | **Move** | the persisted artifact cannot be located | `当前持久化后端不支持定位会话工件，无法跨工作区迁移。` |
 | **Move** | nothing is known that would point later writes at the new artifact | `当前运行时既不暴露 live 写入器、也不暴露持久化写入状态…` |
+
+Every message in the last column is Chinese, and that is what users actually see — the host side has no translation layer, so refusals are not localised even with an English UI.
 
 How a move actually works, in order — a conversation belongs to a workspace through its `cwd`, and the registry refuses to attach a session whose stored cwd disagrees with the workspace path, so the artifact is rewritten first and the ledger second:
 
@@ -338,7 +342,7 @@ src/relocate.ts    The relocation runtime: baskets, panel state, take/untake/dro
 src/workspace.ts   The workspace runtime: conversation listing, archive/restore, delete (agent teardown, live-store detach, artifact removal), cross-workspace move (header rewrite, atomic rename, ledger swap)
 src/api.ts         Host HTTP API: GET state (both panes) + POST op dispatch on /baize-session.api
 src/index.ts       apply: both runtimes + /baize-session command + API mount (inject: commands/sessions/tokenMeter/webServer/sessionPersistence)
-lib/client.js      Browser half, HAND-AUTHORED: the 整理 view with its two panes + the ＋ seat, window.__ModuleLoader__.load({ id, factory })
+lib/client.js      Browser half, HAND-AUTHORED: the Tidy view with its two panes + the ＋ seat, window.__ModuleLoader__.load({ id, factory })
 test/core.spec.ts        Unit tests for the pure helpers (real logged event shapes as fixtures)
 test/workspace.spec.ts   Unit tests for the artifact codec a move relies on (zstd frame layout, header rewrite, round-trip)
 test/client.smoke.mjs    Renders the real client bundle with react-test-renderer and asserts its behaviour
