@@ -48,7 +48,7 @@
 
 ```bash
 # 从 npm 装进 web profile（请使用实际已发布的版本号）
-dsh plugin --profile web add dsh-baize-session@0.1.1
+dsh plugin --profile web add dsh-baize-session@0.1.2
 pm2 restart dsh          # 用 pm2 托管 dsh 时执行
 dsh --profile web
 ```
@@ -70,7 +70,7 @@ pm2 restart dsh          # 用 pm2 托管 dsh 时执行
 装进一个**单独的 profile**，当前运行的 dsh 完全不受影响：
 
 ```bash
-dsh plugin --profile smoke add dsh-baize-session@0.1.1
+dsh plugin --profile smoke add dsh-baize-session@0.1.2
 dsh --profile smoke --dump-config   # 只组装并打印配置，不启动 dsh
 ```
 

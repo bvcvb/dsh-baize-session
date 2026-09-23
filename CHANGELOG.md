@@ -3,6 +3,29 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.1.2] - 2026-09-23
+
+Documentation only: no source or behaviour changed. Published so that the npm package page carries the
+current READMEs and screenshots.
+
+### Docs
+
+- **Added the 工作区 (Workspace) pane screenshot** (`assets/003-workspace-panel.png`) and referenced it
+  from both READMEs. `screenshots.json` now lists three images, which is what the plugin catalogue's
+  carousel reads.
+- **Re-shot both 整理 (Tidy) screenshots** (`001-tidy-panel.png`, `002-message-detail.png`) at a
+  consistent size. The file names are unchanged, so the READMEs needed no edit for these two.
+- **Moved the message-detail screenshot** out of *The panel* and into the *Tidy* section, so each
+  Quick Start section now carries its own screenshot.
+- **Fixed the UI terms in the English README.** It used the Chinese UI words (整理 / 工作区 / 归档 /
+  迁移 / 空对话 / 进行中 …) even though the browser half ships both `zh` and `en` dictionaries and an
+  English UI shows `Tidy` / `Workspace` / `Archive` / `Move` / `empty` / `running` / … — 27 occurrences
+  now match what the UI actually renders. The host side has **no** translation layer, so the injected
+  context block and the refusal messages stay Chinese; the English README now says so explicitly
+  instead of leaving them looking untranslated.
+- Screenshot note: all three images were taken with a Chinese UI, so the English README still shows a
+  Chinese-language UI in its pictures.
+
 ## [0.1.1] - 2026-09-22
 
 ### Fixed
