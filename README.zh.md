@@ -117,6 +117,8 @@ dsh --profile smoke --dump-config   # 只组装并打印配置，不启动 dsh
 
 ### 工作区 —— 管理这个工作区里的对话
 
+![「工作区」面板：顶部是工作区路径与「全部 / 未归档 / 已归档」筛选及各自条数，下面是批量操作条，表格行上并列显示类型徽章与状态徽章，行尾是该行的归档与迁移按钮](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
+
 ```
 工作区：/home/abc/current/test        [ 全部 7 ] [ 未归档 6 ] [ 已归档 1 ]
 ─────────────────────────────────────────────────────────────────────────────

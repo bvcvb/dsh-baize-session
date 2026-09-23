@@ -19,7 +19,7 @@ https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/<file>
 |---|---|---|
 | `001-tidy-panel.png` | Both READMEs, right after the opening bullets (the main image) | The **整理** tab as a whole: target-workspace dropdown, target-conversation dropdown, the action bar with `Selected N items · ~N tokens [Clear] [Relocate]`, and the message table with its `USER` / `ASSISTANT` / `CONTEXT` / `TOOL` badges |
 | `002-message-detail.png` | Both READMEs, in *The panel (整理 tab)* | A message row expanded — the full text below the row, the badge + `#seq` + character count header — next to a ticked checkbox, so the "click to read, tick to select" split is visible |
-| `003-workspace-panel.png` *(wanted)* | Both READMEs, in *Quick Start* → 工作区 | The **工作区** pane: the workspace path with the All / Active / Archived filter, the batch bar, and rows showing both badges (kind + state) next to the per-row buttons |
+| `003-workspace-panel.png` | Both READMEs, in *Quick Start* → 工作区 | The **工作区** pane: the workspace path with the All / Active / Archived filter, the batch bar, and rows showing both badges (kind + state) next to the per-row buttons |
 | `004-command.png` *(optional)* | Both READMEs, in *Commands* | `/baize-session` in the slash-command menu, with its description |
 
 Add a row here and a matching `![…](…/assets/<file>)` line in **both** READMEs when you add a shot —

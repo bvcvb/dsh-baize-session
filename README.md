@@ -116,6 +116,8 @@ Open any conversation and click the **整理** tab next to the chat view. That o
 
 ### 工作区 — manage this workspace's conversations
 
+![The 工作区 (Workspace) pane: the workspace path with its All / Active / Archived filters and counts, the batch bar, and conversation rows showing the kind badge and the state badge next to their per-row Archive and Move buttons](https://raw.githubusercontent.com/bvcvb/dsh-baize-session/HEAD/assets/003-workspace-panel.png)
+
 ```
 Workspace: /home/abc/current/test        [ All 7 ] [ Active 6 ] [ Archived 1 ]
 ─────────────────────────────────────────────────────────────────────────────
